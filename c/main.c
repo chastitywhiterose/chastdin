@@ -18,47 +18,48 @@ this is one reason C is limited compared to Assembly.
 */
 int eax,ebx,ecx,edx,esi,edi,*ebp,*esp;
 
+char *s; /*character pointer for user input*/
+
 /*
-The push and pop instructions are written based on how Intel processors manage the stack with instructions of the same name.
-That means the that esp goes downward when numbers are pushed to the stack and then up when numbers are popped off the stack and returned
-This is the way Intel chose to do it but the reverse method would have worked just as well.
-But regardless, these are not real registers and is only a simulation of Intel.
-This program is of course portable to any processor because it is written in C.
-*/
-
-void push(i)
+ this function is called by all math commands that requires two or more numbers
+ to be on the stack when they are used.
+*/ 
+void stack_check()
 {
- esp--;
- *esp=i;
-}
-
-int pop()
-{
- int i=*esp;
- *esp=0; /*optionally set the value at [esp] to 0 to mark as deleted*/
- esp++;
- return i;
+ if(ebp>stack)
+ {
+  *(ebp+1)=0; /*erase old top of stack because command was successful*/
+ }
+ else
+ {
+  putstr("Error: two numbers required for command: ");
+  putstr(s);
+  putstr("\n");
+  ebp++; /*increment the pointer to what it was before the failed command*/
+ }
 }
 
 int main(int argc, char **argv)
 {
- char *s; /*character pointer for user input*/
+
 
  /*set the radix used for integer display*/
  radix=10;
  int_width=1;
 
- /*set the stack pointer to where it should start*/
-  esp=stack+stack_length;
-  ebp=esp; /*backup address of esp to ebp*/
+ /*set the base pointer to where it should start*/
+  ebp=stack;
   
-putstr("chastdin is a stack based interactive calculator\n"
-"Numbers are pushed on the stack and commands can do math.\n"
-"It is a fork of chastack that reads from stdin instead of arguments.\n"
-"Each line can contain multiple numbers or commands.\n"
-"Math commands are add,sub,mul,div,rem\n"
-"The exit command ends the program\n"
-"The ? command prints the entire stack\n\n");
+ putstr
+ (
+  "chastdin is a stack based interactive calculator\n"
+  "Numbers are pushed on the stack and commands can do math.\n"
+  "It is a fork of chastack that reads from stdin instead of arguments.\n"
+  "Each line can contain multiple numbers or commands.\n"
+  "Math commands are add,sub,mul,div,rem\n"
+  "The exit command ends the program\n"
+  "The ? command prints the entire stack\n\n"
+ );
 
  last_char='\n'; /*set last_char to newline so prompt will print at start*/
 
@@ -82,61 +83,71 @@ putstr("chastdin is a stack based interactive calculator\n"
 
   if(!strcmp(s,"add"))
   {
-   ebx=pop();
-   eax=pop();
+   ebx=*ebp;
+   ebp--;
+   eax=*ebp;
    eax+=ebx;
-   push(eax);
+   *ebp=eax;
+   stack_check();
+  }
+  
+  else if(!strcmp(s,"sub"))
+  {
+   ebx=*ebp;
+   ebp--;
+   eax=*ebp;
+   eax-=ebx;
+   *ebp=eax;
+   stack_check();
   }
   
   else if(!strcmp(s,"mul"))
   {
-   ebx=pop();
-   eax=pop();
+   ebx=*ebp;
+   ebp--;
+   eax=*ebp;
    eax*=ebx;
-   push(eax);
-  }
-
-  else if(!strcmp(s,"sub"))
-  {
-   ebx=pop();
-   eax=pop();
-   eax-=ebx;
-   push(eax);
+   *ebp=eax;
+   stack_check();
   }
 
   else if(!strcmp(s,"div"))
   {
-   ebx=pop();
-   eax=pop();
+   ebx=*ebp;
+   ebp--;
+   eax=*ebp;
    eax/=ebx;
-   push(eax);
+   *ebp=eax;
+   stack_check();
   }
   
   else if(!strcmp(s,"rem"))
   {
-   ebx=pop();
-   eax=pop();
+   ebx=*ebp;
+   ebp--;
+   eax=*ebp;
    eax%=ebx;
-   push(eax);
+   *ebp=eax;
+   stack_check();
   }
   
   else if(!strcmp(s,"?"))
   {
-   int *tmp=esp;
-   while(esp<ebp)
+   int *tmp=ebp;
+   while(ebp>stack)
    {
-    putint(*esp); /*print whole stack in this loop*/  
+    putint(*ebp); /*print whole stack in this loop*/  
     putstr("\n");
-    esp++;
+    ebp--;
    }
-   esp=tmp;
+   ebp=tmp;
   }
   
   else if(!strcmp(s,"clear"))
   {
-   while(esp<ebp)
+   while(ebp>stack)
    {
-    pop(); /*erase whole stack in this loop*/  
+    ebp--; /*erase whole stack in this loop*/  
    }
   }
 
@@ -147,9 +158,14 @@ putstr("chastdin is a stack based interactive calculator\n"
    {
     putstr("Last argument was not a number, but it could be a command!\n");
    }
+   else if(read_count==0)
+   {
+    /*nothing happens because no characters were read*/
+   }
    else
    {
-    push(eax);
+    ebp++;
+    *ebp=eax;
    }
   }
   
@@ -157,3 +173,4 @@ putstr("chastdin is a stack based interactive calculator\n"
 
  return 0;
 }
+
