@@ -1,8 +1,9 @@
 format PE console
-include 'win32ax.inc'
 
-include 'chastelibw32.asm'
-include 'chastdinw32.asm'
+
+include 'win32ax.inc'       ;include standard Windows 64-bit definitions and macros
+include 'chastelibw32.asm'  ;include standard functions by Chastity
+include 'chastdinw32.asm'   ;include standard input functions by Chastity
 
 main:
 
@@ -12,9 +13,10 @@ mov dword[int_width],1 ;and the width of each integer for padded zeros
 mov ebp,chastack       ;mov the address of the beginning of the stack to ebp registers
 
 ;this program does not read command line arguments
-;it always displays a message to tell user what the program does
-mov eax,string_help
-call putstring
+;it only reads from stdin (STanDard INput)
+;it is a complete Revese Polish Notation calculator
+
+call help ;display brief help message at the beginning of program
 
 mov [last_char],0xA ;set newline as last_char so prompt will display
 
@@ -69,13 +71,17 @@ mov edi,string_rem
 call strcmp
 jz command_rem
 
-mov edi,string_query
+mov edi,string_putstack
 call strcmp
-jz command_query
+jz command_putstack
 
 mov edi,string_clear
 call strcmp
 jz command_clear
+
+mov edi,chastdin_help
+call strcmp
+jz command_help
 
 mov edi,string_exit
 call strcmp
@@ -189,16 +195,16 @@ call putline
 add ebp,4            ;increment the pointer to what it was before the failed command
 jmp main_loop
 
-command_query: ;print all numbers on the stack
+command_putstack: ;print all numbers on the stack
 push ebp ;save value of ebp
-command_query_loop:
+command_putstack_loop:
 cmp ebp,chastack ;is ebp equal to the address of stack start?
-jz command_query_end  ;if it is, end the putstack loop
+jz command_putstack_end  ;if it is, end the putstack loop
 mov eax,[ebp]
 sub ebp,4
 call putint_and_line
-jmp command_query_loop
-command_query_end:
+jmp command_putstack_loop
+command_putstack_end:
 pop ebp ;restore ebp to what it was before this command
 jmp main_loop
 
@@ -210,6 +216,10 @@ mov dword[ebp],0
 sub ebp,4
 jmp command_clear_loop
 command_clear_end:
+jmp main_loop
+
+command_help:
+call help
 jmp main_loop
 
 command_exit: ;end the program
@@ -232,7 +242,7 @@ string_div db 'div',0
 string_rem db 'rem',0
 
 string_exit db 'exit',0
-string_query db '?',0
+string_putstack db '?',0
 string_clear db 'clear',0
 
 string_prompt db '-> ',0
@@ -241,13 +251,20 @@ string_err db 'Error: invalid number or command: ',0 ;Generic error message
 string_err1 db 'Error: need one number on stack for command: ',0 ;math fail error when less than one number on the stack
 string_err2 db 'Error: need two numbers on stack for command: ',0 ;math fail error when less than two numbers on the stack
 
-string_help db 'chastdin is a stack based interactive calculator',0xA
-            db 'Numbers are pushed on the stack and commands can do math.',0xA
-            db 'It is a fork of chastack that reads from stdin instead of arguments.',0xA
-            db 'Each line can contain multiple numbers or commands.',0xA
-            db 'Math commands are add,sub,mul,div,rem',0xA
-            db 'The exit command ends the program',0xA
-            db 'The ? command prints the entire stack',0xA,0xA,0
+chastdin_help db 'chastdin is a stack based interactive calculator',0xA
+              db 'Numbers are pushed on the stack and commands can do math.',0xA
+              db 'It is a fork of chastack that reads from stdin instead of arguments.',0xA
+              db 'Each line can contain multiple numbers or commands.',0xA
+              db 'Math commands are add,sub,mul,div,rem',0xA
+              db 'The exit command ends the program',0xA
+              db 'The ? command prints the entire stack',0xA,0xA,0
+            
+;a function to print the help message defined above
+;for how to use this calculator program
+help:
+mov eax,chastdin_help
+call putstring
+ret
 
 ;This program uses a virtual stack for convenience and portability
 ;I allocate memory for a virtual stack that we can index as if it was the real stack
