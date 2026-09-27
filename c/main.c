@@ -29,7 +29,7 @@ void help()
   "Numbers are pushed on the stack and commands can do math.\n"
   "It is a fork of chastack that reads from stdin instead of arguments.\n"
   "Each line can contain multiple numbers or commands.\n\n"
-  "Math commands are add,sub,mul,div,rem\n"
+  "Math commands are add,sub,mul,div,rem,pow\n"
   "And use the top two stack numbers for their operations\n\n"
 
   "The setradix command uses the top of stack as the new radix\n"
@@ -174,6 +174,21 @@ int main(int argc, char **argv)
    stack_check();
   }
   
+  else if(!strcmp(s,"pow"))
+  {
+   ebx=*ebp;
+   ebp--;
+   eax=*ebp;
+   ecx=1;
+   while(ebx>0)
+   {
+    ecx*=eax;
+    ebx--;
+   }
+   *ebp=ecx;
+   stack_check();
+  }
+  
   else if(!strcmp(s,"?"))
   {
    int *tmp=ebp;
@@ -190,6 +205,7 @@ int main(int argc, char **argv)
   {
    while(ebp>stack)
    {
+    *ebp=0;
     ebp--; /*erase whole stack in this loop*/  
    }
   }

@@ -1,0 +1,247 @@
+#include <stdio.h>
+#include <string.h>
+#include "chastelib.h"
+#include "chastdin.h"
+
+#include <gmp.h>
+
+#define stack_length 0x100
+mpz_t stack[stack_length+1]; /*stack array of size stack_length*/
+
+#define outstr_length 0x10000000
+char outstr[outstr_length]; /*large space for string form of mpz conversion*/
+
+int stack_length_init=stack_length;
+int stack_index=0;
+
+char *s; /*character pointer for user input*/
+
+void help()
+{
+ putstr
+ (
+  "chastdin is a stack based interactive calculator\n"
+  "Numbers are pushed on the stack and commands can do math.\n"
+  "It is a fork of chastack that reads from stdin instead of arguments.\n"
+  "Each line can contain multiple numbers or commands.\n\n"
+  "Math commands are add,sub,mul,div,rem,pow\n"
+  "And use the top two stack numbers for their operations\n\n"
+
+  "The setradix command uses the top of stack as the new radix\n"
+  "The exit command ends the program\n"
+  "The ? command prints the entire stack\n\n"
+ );
+ 
+ putstr("This edition of chastdin is powered by the\nGNU Multiple Precision Arithmetic Library\n\n");
+}
+
+/*
+ This function is called by all math commands that require two or more numbers
+ to be on the stack when they are used.
+*/
+void stack_check()
+{
+ if(stack_index>0)
+ {
+  /*erase old top of stack with zero*/
+  mpz_set_ui(stack[stack_index+1],0); 
+ }
+ else
+ {
+  putstr("Error: two numbers required for command: ");
+  putstr(s);
+  putstr("\n");
+  stack_index++; /*increment the pointer to what it was before the failed command*/
+ }
+}
+
+int main(int argc, char **argv)
+{
+ int x;
+ 
+ /*initialize the mpz stack array*/
+ x=0;
+ while(x<=stack_length_init)
+ {
+  mpz_init(stack[x]);
+  x++;
+ }
+
+ /*set the radix used for integer display*/
+ radix=10;
+ int_width=1;
+
+ help();
+
+ last_char='\n'; /*set last_char to newline so prompt will print at start*/
+
+ /*
+ Each argument is processed as a number or command. The loop only ends when the "exit" command is entered.
+ */
+
+ while(1)
+ {
+ 
+  if(last_char=='\n')
+  {
+   putstr("-> ");
+  }  
+  s=getstring();
+  
+  /*first, we check for commands before we check for integers*/
+  if(!strcmp(s,"exit"))
+  {
+   break;
+  }
+  
+  if(!strcmp(s,"help"))
+  {
+   help();
+  }
+  
+  else if(!strcmp(s,"setradix"))
+  {
+   if(stack_index>0)
+   {
+    radix=mpz_get_ui(stack[stack_index]);
+    stack_index--;
+   }
+   else
+   {
+    putstr("Error: need one number on stack for command: ");
+    putstr(s);
+    putstr("\n");
+   }
+  }
+
+  else if(!strcmp(s,"add"))
+  {
+   stack_index--;
+   mpz_add(stack[stack_index],stack[stack_index],stack[stack_index+1]);
+   stack_check();
+  }
+  
+  else if(!strcmp(s,"sub"))
+  {
+   stack_index--;
+   mpz_sub(stack[stack_index],stack[stack_index],stack[stack_index+1]);
+   stack_check();
+  }
+  
+  else if(!strcmp(s,"mul"))
+  {
+   stack_index--;
+   mpz_mul(stack[stack_index],stack[stack_index],stack[stack_index+1]);
+   stack_check();
+  }
+  
+  else if(!strcmp(s,"div"))
+  {
+   if(!mpz_get_ui(stack[stack_index]))
+   {
+    putstr("Cannot get quotient of division by zero!\n");
+   }
+   else
+   {
+    stack_index--;
+    mpz_tdiv_q(stack[stack_index],stack[stack_index],stack[stack_index+1]);
+    stack_check();
+   }
+  }
+  
+  else if(!strcmp(s,"rem"))
+  {
+   if(!mpz_get_ui(stack[stack_index]))
+   {
+    putstr("Cannot get remainder of division by zero!\n");
+   }
+   else
+   {
+    stack_index--;
+    mpz_tdiv_r(stack[stack_index],stack[stack_index],stack[stack_index+1]);
+    stack_check();
+   }
+  }
+  
+  else if(!strcmp(s,"pow"))
+  {
+   x=mpz_get_ui(stack[stack_index]);
+   stack_index--;
+   mpz_pow_ui(stack[stack_index],stack[stack_index],x);
+   stack_check();
+  }
+
+  
+  /*print all elements of stack*/
+  else if(!strcmp(s,"?"))
+  {
+   x=stack_index;
+   while(x>0)
+   {
+    /*
+     convert integer to a string in specific radix
+     negative radix is passed to force capital letters
+     for bases 11 to 36
+    */
+    mpz_get_str(outstr,-radix,stack[x]);
+    putstr(outstr); /*print the outstr*/  
+    putstr("\n");
+    x--;
+   }
+  }
+  
+  /*erase all elements of stack with zero*/
+  else if(!strcmp(s,"clear"))
+  {
+   while(stack_index>0)
+   {
+    mpz_set_ui(stack[stack_index],0); 
+    stack_index--;
+   }
+  }
+
+  /*
+   if the string matches none of the commands above
+   try to get a number and push it to the stack
+   using the current radix and the strint function
+  */
+  else
+  {
+   x=strint(s); /*get a number from the string*/
+   if(strint_errors)
+   {
+    putstr("Last argument was not a number, but it could be a command!\n");
+   }
+   else if(read_count==0)
+   {
+    /*nothing happens because no characters were read*/
+   }
+   else
+   {
+    stack_index++;
+    /*init more memory only if necessary*/
+    if(stack_index>stack_length_init)
+    {
+     printf("stack_index=%d\n",stack_index);
+     mpz_init(stack[stack_index]);
+     putstr("mpz_init(stack[stack_index]);\n");
+     stack_length_init++;
+    }
+    /*set this mpz equal to integer returned from strint*/
+    mpz_set_ui(stack[stack_index],x);
+   }
+  }
+  
+ }
+ 
+ /*clear the mpz stack array*/
+ x=0;
+ while(x<=stack_length_init)
+ {
+  mpz_clear(stack[x]);
+  x++;
+ }
+
+ return 0;
+}
+
